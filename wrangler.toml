@@ -1,0 +1,17 @@
+# Konfigurasi Worker "marking-web"
+name = "marking-web"
+main = "src/worker.ts"
+compatibility_date = "2026-10-01"
+
+# File statis (index.html) dilayani dari ./public.
+# run_worker_first: hanya /api/* yang lewat Worker, sisanya langsung ke asset.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[vars]
+SHEET_NAME = "MARKING"   # nama tab di spreadsheet
+
+# SHEET_ID TIDAK ditulis di sini. Set sebagai secret:
+#   npx wrangler secret put SHEET_ID
