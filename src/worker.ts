@@ -8,6 +8,7 @@
 export interface Env {
   SHEET_ID: string;          // secret
   SHEET_NAME?: string;       // opsional, default "MARKING" (lihat wrangler.toml [vars])
+  SHEET_GID?: string;        // opsional tapi disarankan: gid tab (angka setelah #gid= di URL sheet)
   ASSETS: { fetch(req: Request): Promise<Response> };
 }
 
@@ -36,6 +37,11 @@ export function parseCSV(t: string): string[][] {
   return rows;
 }
 
+/** Cadangan: kalau judul kategori tidak terbaca, pakai prefix kode dokumen (NE.01/... -> "NE"). */
+function prefixKode(kode: string): string {
+  return (kode.split("/")[0].split(".")[0] || "LAIN").toUpperCase();
+}
+
 /**
  * Struktur sheet: baris dengan hanya kolom A terisi (non-angka) = judul kategori
  * (NOBASHI, SUSHI EBI, ...). Baris dengan NO angka + judul = item. Sisanya diabaikan.
@@ -51,7 +57,7 @@ export function rowsToItems(rows: string[][]): Item[] {
       continue;
     }
     if (/^\d+$/.test(a) && b)
-      out.push({ kategori: kat || "LAIN", no: +a, judul: b, kode: c, revisi: d, perubahan: e, link: f });
+      out.push({ kategori: kat || prefixKode(c), no: +a, judul: b, kode: c, revisi: d, perubahan: e, link: f });
   }
   return out;
 }
@@ -69,8 +75,12 @@ export default {
 
     if (!env.SHEET_ID) return json({ error: "SHEET_ID belum diset (wrangler secret put SHEET_ID)" }, 500);
 
-    const sheet = env.SHEET_NAME || "MARKING";
-    const src = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(env.SHEET_ID)}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
+    // Endpoint export mengembalikan sel apa adanya. Endpoint gviz menebak tipe per kolom, sehingga
+    // teks seperti "NOBASHI" di kolom A (yang mayoritas angka) bisa hilang -> kategori tidak terbaca.
+    const id = encodeURIComponent(env.SHEET_ID);
+    const src = env.SHEET_GID
+      ? `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${encodeURIComponent(env.SHEET_GID)}`
+      : `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(env.SHEET_NAME || "MARKING")}`;
 
     // cf.cacheTtl: cache hasil fetch di edge Cloudflare selama 60 detik
     const res = await fetch(src, { cf: { cacheTtl: 60, cacheEverything: true } } as RequestInit);

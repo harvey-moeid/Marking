@@ -11,7 +11,8 @@ binding = "ASSETS"
 run_worker_first = ["/api/*"]
 
 [vars]
-SHEET_NAME = "MARKING"   # nama tab di spreadsheet
+SHEET_NAME = "MARKING"   # nama tab di spreadsheet (dipakai bila SHEET_GID kosong)
+# SHEET_GID = "0"        # disarankan: angka setelah #gid= di URL tab; aktifkan setelah diisi
 
 # SHEET_ID TIDAK ditulis di sini. Set sebagai secret:
 #   npx wrangler secret put SHEET_ID
