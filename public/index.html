@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F1F4F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#09141C" media="(prefers-color-scheme: dark)">
+<title>Marking Packaging · PPIC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== Token warna & ukuran =====
+   Palet: biru-tinta (ink) untuk teks, teal untuk fokus, amber khusus penanda revisi.
+   Warna kategori (--c) diberikan per kartu lewat JS agar tiap produk mudah dikenali sekilas. */
+:root{
+  --bg:#F1F4F7; --sf:#FFFFFF; --ink:#0C2231; --mut:#5B6B78; --ln:#DCE3E8;
+  --ac:#0E7C86; --rev:#A24A06; --revbg:#FFF1DB; --ok:#12805C;
+  --r-lg:18px; --r-md:14px;
+  --shadow:0 1px 2px rgba(12,34,49,.06),0 6px 18px -10px rgba(12,34,49,.18);
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#09141C;--sf:#102230;--ink:#E6EEF3;--mut:#8DA0AE;--ln:#1E3342;--ac:#3CC4CF;--rev:#F5B452;--revbg:#33260E;--ok:#4ADE9B;
+        --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 20px -12px rgba(0,0,0,.6)}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  font-variant-numeric:tabular-nums;padding-bottom:max(32px,env(safe-area-inset-bottom))}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+
+/* ===== Header lengket: judul, pencarian, kategori ===== */
+.top{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 90%,transparent);
+  backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);
+  padding:max(14px,env(safe-area-inset-top)) 0 10px;border-bottom:1px solid transparent;transition:border-color .2s}
+.top.stuck{border-bottom-color:var(--ln)}
+.wrap{max-width:1000px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-left))}
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.sub{margin-top:3px;font-size:12.5px;color:var(--mut);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+.dot.off{background:var(--rev)}
+.iconbtn{width:44px;height:44px;border-radius:50%;border:1px solid var(--ln);background:var(--sf);display:grid;place-items:center;cursor:pointer;flex:none}
+.iconbtn:active{transform:scale(.94)}
+.iconbtn svg{width:20px;height:20px}
+.iconbtn.spin svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.tools{display:flex;gap:8px}
+.search{position:relative;flex:1;min-width:0}
+.search svg{position:absolute;left:14px;top:50%;width:18px;height:18px;transform:translateY(-50%);color:var(--mut);pointer-events:none}
+.search input{width:100%;height:48px;border-radius:var(--r-md);border:1px solid var(--ln);background:var(--sf);padding:0 44px 0 42px;font-size:16px;appearance:none;-webkit-appearance:none}
+.search input::placeholder{color:var(--mut)}
+.search input::-webkit-search-cancel-button{display:none}
+.clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;background:none;border-radius:50%;color:var(--mut);cursor:pointer;display:none;place-items:center}
+.clear.on{display:grid}
+.clear svg{position:static;transform:none;width:18px;height:18px}
+.sort{height:48px;border-radius:var(--r-md);border:1px solid var(--ln);background:var(--sf);padding:0 10px;font-size:14px;font-weight:600;max-width:118px}
+
+.chips{display:flex;gap:8px;overflow-x:auto;padding:12px max(16px,env(safe-area-inset-left)) 2px;margin:0 auto;max-width:1000px;
+  scroll-snap-type:x proximity;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;scroll-snap-align:start;height:40px;padding:0 14px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);cursor:pointer;
+  font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.chip i{font-style:normal;font-size:12px;font-weight:700;color:var(--mut);background:color-mix(in srgb,var(--ink) 8%,transparent);border-radius:99px;padding:1px 7px}
+.chip .sw{width:9px;height:9px;border-radius:3px;background:var(--c)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chip.on i{color:var(--bg);background:color-mix(in srgb,var(--bg) 22%,transparent)}
+
+/* ===== Daftar ===== */
+main{max-width:1000px;margin:0 auto;padding:6px max(16px,env(safe-area-inset-left)) 0}
+.note{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:var(--revbg);color:var(--rev);font-size:13px;font-weight:500}
+.grp{display:flex;align-items:center;gap:8px;margin:22px 2px 10px;font-size:15px;font-weight:800;letter-spacing:-.01em}
+.grp:first-child{margin-top:14px}
+.grp .sw{width:10px;height:10px;border-radius:3px;background:var(--c)}
+.grp small{font-weight:600;color:var(--mut);font-size:13px}
+.list{display:grid;gap:10px}
+.flat{margin-top:14px}
+
+/* Kartu = satu dokumen. Seluruh kartu bisa diketuk untuk membuka link. */
+.card{display:grid;grid-template-columns:78px 1fr 22px;gap:12px;align-items:center;min-height:76px;padding:12px 14px 12px 12px;
+  background:var(--sf);border:1px solid var(--ln);border-radius:var(--r-lg);box-shadow:var(--shadow);color:inherit;text-decoration:none;
+  transition:transform .12s,border-color .15s}
+a.card:active{transform:scale(.985)}
+@media (hover:hover){a.card:hover{border-color:var(--c)}}
+/* Label kode: meniru label cetak di kemasan, jadi penanda utama yang cepat dipindai */
+.tag{align-self:stretch;min-height:52px;border-radius:12px;display:grid;place-items:center;text-align:center;padding:6px 4px;
+  background:color-mix(in srgb,var(--c) 13%,transparent);border:1.5px dashed color-mix(in srgb,var(--c) 55%,transparent);
+  color:color-mix(in srgb,var(--c) 72%,var(--ink));font-weight:800;font-size:14px;letter-spacing:.01em;line-height:1.15}
+.body{min-width:0}
+.title{font-weight:700;font-size:15px;line-height:1.3;overflow-wrap:anywhere}
+.meta{display:flex;flex-wrap:wrap;gap:2px 12px;margin-top:4px;font-size:12.5px;color:var(--mut)}
+.cat{color:color-mix(in srgb,var(--c) 70%,var(--ink));font-weight:600}
+.rev{display:flex;align-items:flex-start;gap:8px;margin-top:8px;font-size:12.5px;color:var(--rev);background:var(--revbg);border-radius:10px;padding:7px 9px}
+.rev b{flex:none;border:1.5px solid currentColor;border-radius:6px;padding:0 6px;font-size:11.5px;line-height:1.5;transform:rotate(-2deg)}
+.go{width:22px;height:22px;color:var(--mut)}
+a.card .go{color:var(--c)}
+.nolink{font-size:11px;color:var(--mut);text-align:right;line-height:1.2}
+
+/* ===== Kondisi: memuat, kosong ===== */
+.sk{height:76px;border-radius:var(--r-lg);background:linear-gradient(90deg,var(--sf) 0%,color-mix(in srgb,var(--ln) 60%,var(--sf)) 50%,var(--sf) 100%);background-size:200% 100%;border:1px solid var(--ln);animation:sh 1.2s ease-in-out infinite}
+@keyframes sh{to{background-position:-200% 0}}
+.empty{text-align:center;padding:56px 16px;color:var(--mut)}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.empty button{margin-top:14px;height:44px;padding:0 18px;border-radius:99px;border:1px solid var(--ln);background:var(--sf);font-weight:600;cursor:pointer}
+
+@media (min-width:760px){
+  h1{font-size:26px}
+  .list{grid-template-columns:1fr 1fr;gap:12px}
+  .sk{height:84px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="top" id="top">
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <h1>Marking Packaging</h1>
+        <div class="sub"><span class="dot off" id="dot"></span><span>Dept. PPIC</span><span id="stat"></span></div>
+      </div>
+      <button class="iconbtn" id="refresh" aria-label="Muat ulang data">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </button>
+    </div>
+    <div class="tools">
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" inputmode="search" autocomplete="off" placeholder="Cari judul atau kode dokumen" aria-label="Cari dokumen">
+        <button class="clear" id="clear" aria-label="Hapus pencarian" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </label>
+      <select class="sort" id="sort" aria-label="Urutkan">
+        <option value="no">Urutan</option>
+        <option value="new">Terbaru</option>
+        <option value="old">Terlama</option>
+      </select>
+    </div>
+  </div>
+  <div class="chips" id="chips" role="tablist" aria-label="Kategori produk"></div>
+</div>
+
+<main id="main" aria-live="polite"></main>
+
+<script>
+/* ===== KONFIGURASI =====
+   Data diambil dari Worker (/api/data). SHEET_ID disimpan sebagai secret di Worker,
+   jadi tidak ada di halaman ini. Kalau API gagal, dipakai DATA_CONTOH sebagai fallback. */
+const API_URL = "/api/data";
+const REFRESH_MENIT = 5;             // auto-refresh data (0 = mati)
+
+/* Data contoh dari file MARKING_PRODUK.xlsx (fallback) */
+const DATA_CONTOH = [{"kategori": "NOBASHI", "no": 1, "judul": "Nobashi Terrasea 16-20 dan 26-30 PO 36581-2", "kode": "NE.01/051026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/NETerraseaPO36581-2"}, {"kategori": "NOBASHI", "no": 2, "judul": "Nobashi STG AR Nichirei Food", "kode": "NE.02/061026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/NESTGARnichireifood"}, {"kategori": "NOBASHI", "no": 3, "judul": "Nobashi Nishimoto Malaysia 4L", "kode": "NE.03/091026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/NENSHMalaysia4L"}, {"kategori": "NOBASHI", "no": 4, "judul": "Nobashi MTRL STC 11g & Non STC 12g Nichirei Food", "kode": "NE.04/201026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/NEMTRLSTC11gnonSTC12g"}, {"kategori": "NOBASHI", "no": 5, "judul": "Nobashi Golden Hawk Nichirei Food", "kode": "NE.05/201026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/NEGoldenHawk"}, {"kategori": "NOBASHI", "no": 6, "judul": "Nobashi Kuze Nichirei Food", "kode": "NE.06/201026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/NEKUZESeries"}, {"kategori": "NOBASHI", "no": 7, "judul": "Nobashi Nishimoto Essential", "kode": "NE.07/201026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/NENSHEssential"}, {"kategori": "NOBASHI", "no": 8, "judul": "Nobashi STG Nichirei Food", "kode": "NE.08/211026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/NESTGNichireiFood"}, {"kategori": "NOBASHI", "no": 9, "judul": "Nobashi Shrimp Paradise 3L Nichirei Food", "kode": "NE.09/261026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/NEShrimpParadise3LFood"}, {"kategori": "NOBASHI", "no": 10, "judul": "Nobashi MTR M Nichirei Food", "kode": "NE.10/301026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/NEMTRMNichireiFood"}, {"kategori": "SUSHI EBI", "no": 1, "judul": "Sushi Ebi XL DALIAN", "kode": "SE.01/061026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/SEXLDalian"}, {"kategori": "SUSHI EBI", "no": 2, "judul": "Sushi Ebi Golden Sand", "kode": "SE.02/121026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/SEGoldenSand"}, {"kategori": "SUSHI EBI", "no": 3, "judul": "Sushi Ebi Pafco Premium (30bag)", "kode": "SE.03/131026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/SEPafcoPREM"}, {"kategori": "SUSHI EBI", "no": 4, "judul": "Sushi Ebi WOT MM Nichirei Food", "kode": "SE.04/231026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/SEWOTMMNCRFood"}, {"kategori": "SUSHI EBI", "no": 5, "judul": "Sushi Ebi WOT LL Malaysia (Foam Tray)", "kode": "SE.05/2710/26/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/SEWotLL500grMALAY"}, {"kategori": "EBIFRY", "no": 1, "judul": "Ebifry Golden Harvest Round Tail On Coconut 16-20", "kode": "EF.01/071026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/GHRoundTailOnCoco16-20"}, {"kategori": "EBIFRY", "no": 2, "judul": "Ebifry Golden Harvest Round Tail Off 31/40", "kode": "EF.02/191026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/GHRoundTailOff31"}, {"kategori": "EBIFRY", "no": 3, "judul": "Ebifry Golden Harvest BTF 16/20", "kode": "EF.03/191026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/GHBTF16-20"}, {"kategori": "EBIFRY", "no": 4, "judul": "Ebifry Best Chef 26 ITF Printed", "kode": "EF.04/211026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/BestChef26-30"}, {"kategori": "RAW", "no": 1, "judul": "RPD Lawson 51/60 & 91/120 (STICKER)", "kode": "RAW.01/091026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/RAWRpdLawson51-91"}, {"kategori": "RAW", "no": 2, "judul": "RPD Lawson 51/60 & 91/120 (PRINTED)", "kode": "RAW.02/131026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/RPDLawsonPrinted"}, {"kategori": "RAW", "no": 3, "judul": "PDTO Sunnyvale Talassa 16-20", "kode": "RAW.03/151026/00", "revisi": "RAW.03/151026/01", "perubahan": "BAG BEST IF USED BY PRINTED", "link": "https://bit.ly/PDTOSunnyvaleTalassa5x2"}, {"kategori": "RAW", "no": 4, "judul": "RPD STG L-10L Nichirei Food", "kode": "RAW.04/201026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/RPDSTGL-10L"}, {"kategori": "RAW", "no": 5, "judul": "RPD STG 10L (16-20) Nichirei Food", "kode": "RAW.05/201026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/RPDSTG10L16-20"}, {"kategori": "RAW", "no": 6, "judul": "RPD Shrimp Paradise VP Nichirei Food", "kode": "RAW.06/211026/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/RPDShrimpParadiseVP"}, {"kategori": "RAW", "no": 7, "judul": "RPD 51/60 Shenzhen", "kode": "RAW.07/051126/00", "revisi": "", "perubahan": "", "link": "https://bit.ly/RPD51-60Shenzhen"}];
+
+/* ===== STATE ===== */
+let all = [], tab = "Semua", live = false, loading = true;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+
+/* Warna kategori: diberikan urut sesuai kemunculan di sheet, jadi kategori baru otomatis dapat warna */
+const PALET = ["#0E7C86","#3B5BDB","#7C3AED","#12805C","#B8336A","#0369A1"];
+const warna = {};
+const cWarna = k => warna[k] || (warna[k] = PALET[Object.keys(warna).length % PALET.length]);
+
+// "NOBASHI" -> "Nobashi", "SUSHI EBI" -> "Sushi Ebi"; singkatan <= 3 huruf (RAW) dibiarkan
+const judulKat = s => s.length <= 3 ? s : s.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
+
+/* Tanggal diambil dari kode: XX.01/DDMMYY/00 -> 05 Okt 2026 */
+function tgl(kode){
+  const p = (kode||"").split("/"), d = p.slice(1,-1).join("").replace(/\D/g,"");
+  if (d.length !== 6) return null;
+  return new Date(2000 + +d.slice(4), +d.slice(2,4) - 1, +d.slice(0,2));
+}
+const fmt = d => d ? d.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "-";
+const kodePendek = k => (k||"").split("/")[0] || "-";
+// Status revisi berbentuk kode (RAW.03/151026/01) -> "Rev 01"; selain itu tampilkan apa adanya
+const revLabel = r => /\/\d+$/.test(r) ? "Rev " + r.split("/").pop() : r;
+
+/* ===== PENGAMBILAN DATA ===== */
+async function load(manual){
+  loading = !all.length; if (loading) render();
+  $("refresh").classList.add("spin");
+  let items = null;
+  try{
+    const res = await fetch(API_URL); if (!res.ok) throw new Error(res.status);
+    items = (await res.json()).items;
+  }catch(err){ console.warn("Gagal ambil /api/data, pakai data contoh:", err) }
+  live = !!(items && items.length);
+  all = live ? items : DATA_CONTOH;
+  all.forEach(i => cWarna(i.kategori));
+  loading = false;
+  $("dot").className = "dot" + (live ? "" : " off");
+  $("stat").textContent = live
+    ? "Diperbarui " + new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})
+    : "Data contoh";
+  setTimeout(() => $("refresh").classList.remove("spin"), manual ? 400 : 0);
+  render();
+}
+
+/* ===== TAMPILAN ===== */
+const ICON_GO = '<svg class="go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>';
+
+function kartu(i, tampilKat){
+  const rev = i.revisi ? `<div class="rev"><b>${esc(revLabel(i.revisi))}</b><span>${i.perubahan ? esc(i.perubahan) : "Direvisi"}</span></div>` : "";
+  const isi = `
+    <div class="tag">${esc(kodePendek(i.kode))}</div>
+    <div class="body">
+      <div class="title">${esc(i.judul)}</div>
+      <div class="meta">
+        ${tampilKat ? `<span class="cat">${esc(judulKat(i.kategori))}</span>` : ""}
+        <span>Terbit ${fmt(tgl(i.kode))}</span>
+        <span>${esc(i.kode)}</span>
+      </div>${rev}
+    </div>
+    ${i.link ? ICON_GO : '<span class="nolink">Tanpa link</span>'}`;
+  const st = `style="--c:${cWarna(i.kategori)}"`;
+  return i.link
+    ? `<a class="card" ${st} href="${esc(i.link)}" target="_blank" rel="noopener" aria-label="Buka ${esc(i.judul)}">${isi}</a>`
+    : `<div class="card" ${st}>${isi}</div>`;
+}
+
+function render(){
+  // Chip kategori + jumlah dokumen
+  const kats = [...new Set(all.map(i => i.kategori))];
+  const chip = (nama, label, n, c) =>
+    `<button class="chip ${nama===tab?"on":""}" role="tab" aria-selected="${nama===tab}" data-c="${esc(nama)}" ${c?`style="--c:${c}"`:""}>${c?'<span class="sw"></span>':""}${esc(label)}<i>${n}</i></button>`;
+  $("chips").innerHTML = chip("Semua","Semua",all.length,"") +
+    kats.map(k => chip(k, judulKat(k), all.filter(i => i.kategori===k).length, cWarna(k))).join("");
+
+  const main = $("main");
+  if (loading){ main.innerHTML = '<div class="list flat">' + '<div class="sk"></div>'.repeat(6) + '</div>'; return }
+
+  const q = $("q").value.toLowerCase().trim(), s = $("sort").value;
+  $("clear").classList.toggle("on", !!q);
+  const v = all.filter(i => (tab==="Semua" || i.kategori===tab) && (!q || (i.judul+" "+i.kode).toLowerCase().includes(q)));
+  const dt = i => tgl(i.revisi || i.kode) || 0;
+  if (s==="new") v.sort((a,b) => dt(b)-dt(a)); else if (s==="old") v.sort((a,b) => dt(a)-dt(b));
+
+  const note = live ? "" : '<div class="note" role="status">Menampilkan data contoh karena Google Sheets belum terhubung.</div>';
+  if (!v.length){
+    main.innerHTML = note + `<div class="empty"><b>Dokumen tidak ditemukan</b>Coba kata kunci lain atau pilih kategori Semua.<br><button id="reset">Hapus pencarian</button></div>`;
+    return;
+  }
+  // Dikelompokkan per kategori hanya saat tab Semua dan urutan default
+  if (tab==="Semua" && s==="no"){
+    let h = note;
+    for (const k of kats){
+      const g = v.filter(i => i.kategori===k); if (!g.length) continue;
+      h += `<h2 class="grp" style="--c:${cWarna(k)}"><span class="sw"></span>${esc(judulKat(k))}<small>${g.length}</small></h2><div class="list">${g.map(i => kartu(i,false)).join("")}</div>`;
+    }
+    main.innerHTML = h;
+  } else {
+    main.innerHTML = note + `<div class="list flat">${v.map(i => kartu(i, tab==="Semua")).join("")}</div>`;
+  }
+}
+
+/* ===== EVENT ===== */
+$("chips").onclick = e => { const b = e.target.closest("[data-c]"); if (b){ tab = b.dataset.c; render(); b.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"}) } };
+$("q").oninput = render;
+$("sort").onchange = render;
+$("clear").onclick = () => { $("q").value = ""; render(); $("q").focus() };
+$("main").onclick = e => { if (e.target.id==="reset"){ $("q").value=""; tab="Semua"; render() } };
+$("refresh").onclick = () => load(true);
+addEventListener("scroll", () => $("top").classList.toggle("stuck", scrollY > 8), {passive:true});
+
+load();
+if (REFRESH_MENIT > 0) setInterval(load, REFRESH_MENIT*60000);
+</script>
+</body>
+</html>
