@@ -1,13 +1,10 @@
 /**
  * Worker: proxy data Google Sheets -> JSON.
- *
- * - SHEET_ID disimpan sebagai secret (`wrangler secret put SHEET_ID`), tidak pernah dikirim ke browser.
- * - Hanya /api/data yang diproses di sini; file statis di ./public dilayani oleh Assets binding.
- * - Hasil di-cache 60 detik di edge supaya tidak membebani Google saat banyak pengunjung.
+ * SHEET_ID is stored as a Worker secret; static files are served by Assets.
  */
 export interface Env {
-  SHEET_ID: string;          // secret
-  SHEET_NAME?: string;       // opsional, default "MARKING" (lihat wrangler.toml [vars])
+  SHEET_ID: string;
+  SHEET_NAME?: string;
   ASSETS: { fetch(req: Request): Promise<Response> };
 }
 
@@ -16,7 +13,7 @@ export interface Item {
   kode: string; revisi: string; perubahan: string; link: string;
 }
 
-/** Parser CSV kecil: mendukung tanda kutip, koma, dan newline di dalam sel. */
+/** CSV parser supporting quoted cells, commas, and embedded newlines. */
 export function parseCSV(t: string): string[][] {
   const rows: string[][] = [];
   let r: string[] = [], c = "", q = false;
@@ -37,21 +34,49 @@ export function parseCSV(t: string): string[][] {
 }
 
 /**
- * Struktur sheet: baris dengan hanya kolom A terisi (non-angka) = judul kategori
- * (NOBASHI, SUSHI EBI, ...). Baris dengan NO angka + judul = item. Sisanya diabaikan.
+ * MARKING sheet:
+ * A = category heading on its own row, or numeric document number;
+ * B = document title; C-F = issue code, revision, change, link.
+ * Category headings remain in effect for subsequent numbered rows.
+ * If a heading is absent from the CSV export, infer category from code prefix.
  */
 export function rowsToItems(rows: string[][]): Item[] {
   const out: Item[] = [];
   let kat: string | null = null;
+  const kategoriDariKode: Record<string, string> = {
+    NE: "NOBASHI",
+    SE: "SUSHI EBI",
+    EF: "EBIFRY",
+    RAW: "RAW",
+  };
+
   for (const r of rows) {
-    const [a, b, c, d, e, f] = [0, 1, 2, 3, 4, 5].map((i) => (r[i] || "").trim());
+    const cell = (i: number) => (r[i] || "").replace(/^\uFEFF/, "").trim();
+    const a = cell(0), b = cell(1), c = cell(2);
+    const d = cell(3), e = cell(4), f = cell(5);
+    const nomorValid = /^\d+(?:\.0+)?$/.test(a);
+
     if (!a && !b && !c) continue;
-    if (a && !b && !/^\d+$/.test(a)) {
+
+    // A text value without a title is a category heading (never require B edits).
+    if (a && !nomorValid && !b) {
       if (!/^(DETAIL|DEPT|NO$)/i.test(a)) kat = a;
       continue;
     }
-    if (/^\d+$/.test(a) && b)
-      out.push({ kategori: kat || "LAIN", no: +a, judul: b, kode: c, revisi: d, perubahan: e, link: f });
+
+    // A numeric value in A plus a title in B is a document row.
+    if (nomorValid && b) {
+      const prefixKode = c.split(/[./_-]/, 1)[0].toUpperCase();
+      out.push({
+        kategori: kat || kategoriDariKode[prefixKode] || "LAIN",
+        no: Number(a),
+        judul: b,
+        kode: c,
+        revisi: d,
+        perubahan: e,
+        link: f,
+      });
+    }
   }
   return out;
 }
@@ -66,13 +91,10 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname !== "/api/data") return env.ASSETS.fetch(req);
-
     if (!env.SHEET_ID) return json({ error: "SHEET_ID belum diset (wrangler secret put SHEET_ID)" }, 500);
 
     const sheet = env.SHEET_NAME || "MARKING";
     const src = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(env.SHEET_ID)}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
-
-    // cf.cacheTtl: cache hasil fetch di edge Cloudflare selama 60 detik
     const res = await fetch(src, { cf: { cacheTtl: 60, cacheEverything: true } } as RequestInit);
     if (!res.ok) return json({ error: `Gagal ambil sheet (HTTP ${res.status}). Pastikan sheet dibagikan 'Anyone with the link'.` }, 502);
 
